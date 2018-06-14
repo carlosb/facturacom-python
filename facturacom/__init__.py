@@ -1,5 +1,34 @@
 #!/usr/bin/python
 
+"""Factura.com Python Bindings
+===========================
+
+This module contains the Python helper classes to use in
+conjunction with Factura.com's API.
+
+The helper classes are based on the official documentation
+specification that may be found on Factura.com's website.
+Alternatively, you can follow this link to read more about it:
+https://facturacom.docs.apiary.io/
+
+Usage
+-----
+
+You will have to import the library, set the API keys and specify the operation
+mode:
+
+```python
+import facturacom
+
+facturacom.API.key = 'YOUR API KEY'
+facturacom.API.secret_key = 'YOUR SECRET API KEY'
+facturacom.API.mode = 'PRODUCTION'  # or SANDBOX
+```
+
+Now you can start making requests!
+"""
+
+
 import platform
 import requests
 
@@ -11,13 +40,6 @@ except ImportError:
     import simplejson as json
 
 
-def api_version(version):
-    def decorator(func):
-        func.api_version = version
-        return func
-    return decorator
-
-
 class FacturaError(Exception):
     def __init__(self, error_json):
         super(FacturaError, self).__init__(error_json)
@@ -25,20 +47,23 @@ class FacturaError(Exception):
 
 
 class _API:
-    SANDBOX_HOST = 'http://private-anon-dab239ca03-facturacom.apiary-mock.com'
-    PRODUCTION_HOST = 'https://factura.com'
-    DEFAULT_VERSION = '3'
-    ALLOWED_MODES = set(['SANDBOX', 'PRODUCTION'])
+    """Helper class to handle and store information used by the
+    resource classes when making HTTP requests.
+    """
+    _SANDBOX_HOST = 'http://private-anon-dab239ca03-facturacom.apiary-mock.com'
+    _PRODUCTION_HOST = 'https://factura.com'
+    _DEFAULT_VERSION = '3'
+    _ALLOWED_MODES = set(['SANDBOX', 'PRODUCTION'])
 
-    DATA = {
+    _DATA = {
         'lang': 'python',
         'lang_version': platform.python_version(),
         'uname': platform.uname()
     }
 
-    HEADERS = {
+    _HEADERS = {
         'Content-type': 'application/json',
-        'X-Facturacom-Client-User-Agent': json.dumps(DATA),
+        'X-Facturacom-Client-User-Agent': json.dumps(_DATA),
         'F-API-KEY': '',
         'F-SECRET-KEY': ''
     }
@@ -54,7 +79,7 @@ class _API:
 
     @key.setter
     def key(self, value):
-        _API.HEADERS['F-API-KEY'] = value
+        _API._HEADERS['F-API-KEY'] = value
         self._key = value
 
     @property
@@ -63,7 +88,7 @@ class _API:
 
     @secret_key.setter
     def secret_key(self, value):
-        _API.HEADERS['F-SECRET-KEY'] = value
+        _API._HEADERS['F-SECRET-KEY'] = value
         self._secret_key = value
 
     @property
@@ -72,28 +97,137 @@ class _API:
 
     @mode.setter
     def mode(self, value):
-        if value not in _API.ALLOWED_MODES:
+        if value not in _API._ALLOWED_MODES:
             raise FacturaError({
                 'message': 'Unknown API mode. Please choose between: %s' %
-                ', '.join(_API.ALLOWED_MODES)
+                ', '.join(_API._ALLOWED_MODES)
             })
         self._mode = value
 
     def base(self, version=None):
         if version is None:
-            version = _API.DEFAULT_VERSION
+            version = _API._DEFAULT_VERSION
         if self._mode == 'SANDBOX':
-            return '%s/api/v%s' % (_API.SANDBOX_HOST, version)
+            return '%s/api/v%s' % (_API._SANDBOX_HOST, version)
         elif self._mode == 'PRODUCTION':
-            return '%s/api/v%s' % (_API.PRODUCTION_HOST, version)
+            return '%s/api/v%s' % (_API._PRODUCTION_HOST, version)
         else:
             raise FacturaError({
                 'message': 'Unknown API mode. Please choose between: %s' %
-                ', '.join(_API.ALLOWED_MODES)
+                ', '.join(_API._ALLOWED_MODES)
             })
 
 
 API = _API()  # The API singleton to be used
+
+
+class _DictHelper:
+    """This class may acquire an existing dictionary and perform
+    operations over it. I.e. changes to this dictionary will be
+    reflected in the original dictionary. Furthermore, this class
+    allows the use of the dot accessor: `d['x']` is the same as `d.x`.
+
+    Example
+    -------
+
+    ```python
+    >>> d = {'x': 2}
+    >>> d
+    {'x': 2}
+    >>> other = _DictHelper(d)
+    >>> other.x = 3
+    >>> other
+    {'x': 3}
+    >>> d
+    {'x': 3}
+    ```
+    """
+    def __init__(self, d={}):
+        self.__dict__ = d
+
+    def __getitem__(self, key):
+        return self.__dict__[key]
+
+    def __setitem__(self, key, value):
+        self.__dict__[key] = value
+
+    def __repr__(self):
+        return str(self.__dict__)
+
+    def __any__(self):
+        return any(self.__dict__)
+
+    def __all__(self):
+        return all(self.__dict__)
+
+    def __ascii__(self):
+        return ascii(self.__dict__)
+
+    def __bool__(self):
+        return bool(self.__dict__)
+
+    def __enumerate__(self):
+        return enumerate(self.__dict__)
+
+    def __filter__(self):
+        return filter(self.__dict__)
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def __len__(self):
+        return len(self.__dict__)
+
+    def __max__(self):
+        return max(self.__dict__)
+
+    def __min__(self):
+        return min(self.__dict__)
+
+    def __map__(self):
+        return map(self.__dict__)
+
+    def __sorted__(self):
+        return sorted(self.__dict__)
+
+    def __sum__(self):
+        return sum(self.__dict__)
+
+    def __zip__(self):
+        return zip(self.__dict__)
+
+    def clear(self, *args, **kwargs):
+        return self.__dict__.clear(*args, **kwargs)
+
+    def copy(self, *args, **kwargs):
+        return self.__dict__.copy(*args, **kwargs)
+
+    def fromkeys(self, *args, **kwargs):
+        return self.__dict__.fromkeys(*args, **kwargs)
+
+    def get(self, *args, **kwargs):
+        return self.__dict__.get(*args, **kwargs)
+
+    def items(self, *args, **kwargs):
+        return self.__dict__.items(*args, **kwargs)
+
+    def keys(self, *args, **kwargs):
+        return self.__dict__.keys(*args, **kwargs)
+
+    def popitem(self, *args, **kwargs):
+        return self.__dict__.popitem(*args, **kwargs)
+
+    def setdefault(self, *args, **kwargs):
+        return self.__dict__.setdefault(*args, **kwargs)
+
+    def pop(self, *args, **kwargs):
+        return self.__dict__.pop(*args, **kwargs)
+
+    def values(self, *args, **kwargs):
+        return self.__dict__.values(*args, **kwargs)
+
+    def update(self, *args, **kwargs):
+        return self.__dict__.update(*args, **kwargs)
 
 
 class _Resource(object):
@@ -101,6 +235,8 @@ class _Resource(object):
     A _Resource is a helper class that represents an entity (resource)
     on Factura.com's servers. Its methods and information may be accessed
     via HTTP requests.
+
+    **All attributes names are converted to lowercase.**
     """
 
     def __init__(self, params=None):
@@ -114,7 +250,7 @@ class _Resource(object):
     def __setitem__(self, key, value):
         self.__dict__[key] = value
 
-    def __str__(self):
+    def __repr__(self):
         return str(self.__dict__)
 
     # --- Static methods ------------------------------------------------------
@@ -155,12 +291,12 @@ class _Resource(object):
                     url = '%s?%s' % (
                         path, urllib.urlencode(params, True))
             req = requests.request(
-                method, url, headers=_API.HEADERS)
+                method, url, headers=_API._HEADERS)
         else:
             if params is None:
                 params = ''
             req = requests.request(
-                method, path, headers=_API.HEADERS,
+                method, path, headers=_API._HEADERS,
                 data=json.dumps(params))
 
         j = json.loads(req.text)
@@ -210,6 +346,19 @@ class _Resource(object):
         for key in new_keys:
             self.__dict__[key] = params[key]
 
+        # converts the keys to lower case of
+        # all the nested dictionaries
+        stack = [self.__dict__]
+        while stack:
+            d = stack.pop()
+            lowercase = {k.lower(): v for k, v in d.items()}
+            d.clear()
+            d.update(lowercase)
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    d[k] = _DictHelper(d[k])
+                    stack.append(d[k])
+
     def _instance_url(self):
         """
         Gets the URL pointing to the instance on Factura.com's servers.
@@ -256,7 +405,7 @@ class CFDI33(_Resource):
         return [CFDI33(cfdi) for cfdi in j['data']]
 
     @classmethod
-    def create(cls, params):
+    def create(cls, params={}):
         """
         Creates a CFDI entity on Factura.com's servers.
 
@@ -271,23 +420,25 @@ class CFDI33(_Resource):
         j.pop('message')
         return CFDI33(j)
 
-    def cancel(self, params):
+    def cancel(self, params={}):
         self._make_request(
             method='GET',
             path=self._cancel_url(),
             params=params)
 
-    def send_via_email(self, params):
+    def send_via_email(self, params={}):
         self._make_request(
             method='GET',
             path=self._send_via_email_url(),
             params=params)
 
-    def xml_url(cls):
-        return '%s/xml' % (cls._instance_url())
+    @property
+    def xml_url(self):
+        return '%s/xml' % (self._instance_url())
 
-    def pdf_url(cls):
-        return '%s/pdf' % (cls._instance_url())
+    @property
+    def pdf_url(self):
+        return '%s/pdf' % (self._instance_url())
 
 
 class Customer(_Resource):
@@ -337,7 +488,7 @@ class Customer(_Resource):
         return [Customer(cus) for cus in j['data']]
 
     @classmethod
-    def create(cls, params):
+    def create(cls, params={}):
         """
         Creates a Customer entity on Factura.com's servers.
 
@@ -352,7 +503,7 @@ class Customer(_Resource):
         return Customer(j['data'])
 
     @classmethod
-    def update(cls, params):
+    def update(cls, params={}):
         """
         Creates a Customer entity on Factura.com's servers.
 
@@ -367,7 +518,7 @@ class Customer(_Resource):
         return Customer(j['data'])
 
     @classmethod
-    def find(cls, params):
+    def find(cls, params={}):
         """
         Creates a Customer entity on Factura.com's servers.
 
@@ -377,6 +528,6 @@ class Customer(_Resource):
         """
         response, j = cls._make_request(
             method='GET',
-            path=cls._create_url(),
+            path=cls._find_url(),
             params=params)
         return Customer(j['data'])
