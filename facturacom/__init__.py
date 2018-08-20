@@ -28,11 +28,12 @@ facturacom.API.mode = 'PRODUCTION'  # or SANDBOX
 Now you can start making requests!
 """
 
-
 import platform
 import requests
 
 import urllib
+
+from io import BytesIO
 
 try:
     import json
@@ -50,7 +51,7 @@ class _API:
     """Helper class to handle and store information used by the
     resource classes when making HTTP requests.
     """
-    _SANDBOX_HOST = 'http://private-anon-dab239ca03-facturacom.apiary-mock.com'
+    _SANDBOX_HOST = 'http://devfactura.in/'
     _PRODUCTION_HOST = 'https://factura.com'
     _DEFAULT_VERSION = '3'
     _ALLOWED_MODES = set(['SANDBOX', 'PRODUCTION'])
@@ -62,7 +63,7 @@ class _API:
     }
 
     _HEADERS = {
-        'Content-type': 'application/json',
+        'Content-Type': 'application/json',
         'X-Facturacom-Client-User-Agent': json.dumps(_DATA),
         'F-API-KEY': '',
         'F-SECRET-KEY': ''
@@ -142,6 +143,7 @@ class _DictHelper:
     {'x': 3}
     ```
     """
+
     def __init__(self, d={}):
         self.__dict__ = d
 
@@ -253,9 +255,12 @@ class _Resource(object):
     def __repr__(self):
         return str(self.__dict__)
 
+    def __str__(self):
+        return str(self.__dict__)
+
     # --- Static methods ------------------------------------------------------
     @classmethod
-    def _make_request(cls, method, path, params, _raise=True):
+    def _make_request(cls, method, path, params=None, _raise=True):
         """
         Makes an HTTP request to Factura.com's servers.
 
@@ -298,10 +303,8 @@ class _Resource(object):
             req = requests.request(
                 method, path, headers=_API._HEADERS,
                 data=json.dumps(params))
-
-        j = json.loads(req.text)
-
         if req.ok:
+            j = json.loads(req.text)
             try:
                 status = j.pop('status')
             except KeyError:
@@ -309,7 +312,10 @@ class _Resource(object):
             if status == 'success':
                 return req, j
             elif _raise:
+                j.update({'status': status})
                 raise FacturaError(j)
+        elif _raise:
+            raise FacturaError({'status': req.status_code})
 
     @classmethod
     def _class_name(cls):
@@ -433,6 +439,22 @@ class CFDI33(_Resource):
             params=params)
 
     @property
+    def pdf(self):
+        r = requests.request(
+            'GET',
+            self.pdf_url,
+            headers=_API._HEADERS)
+        return BytesIO(r.content)
+
+    @property
+    def xml(self):
+        r = requests.request(
+            'GET',
+            self.xml_url,
+            headers=_API._HEADERS)
+        return BytesIO(r.content)
+
+    @property
     def xml_url(self):
         return '%s/xml' % (self._instance_url())
 
@@ -466,8 +488,8 @@ class Customer(_Resource):
         return '%s/create' % (cls._class_url(cls.API_VERSION))
 
     @classmethod
-    def _find_url(cls):
-        return cls._class_url()
+    def _find_url(cls, rfc):
+        return '%s/%s' % (cls._class_url(), rfc)
 
     def _update_url(cls):
         return '%s/update' % (cls._instance_url())
@@ -500,10 +522,9 @@ class Customer(_Resource):
             method='POST',
             path=cls._create_url(),
             params=params)
-        return Customer(j['data'])
+        return Customer(j['Data'])
 
-    @classmethod
-    def update(cls, params={}):
+    def update(self, params={}):
         """
         Creates a Customer entity on Factura.com's servers.
 
@@ -511,14 +532,14 @@ class Customer(_Resource):
         --------
         https://facturacom.docs.apiary.io/#reference/cfdi-3.3/crear-cfdi
         """
-        response, j = cls._make_request(
+        response, j = self._make_request(
             method='POST',
-            path=cls._create_url(),
+            path=self._update_url(),
             params=params)
-        return Customer(j['data'])
+        return Customer(j['Data'])
 
     @classmethod
-    def find(cls, params={}):
+    def find(cls, rfc):
         """
         Creates a Customer entity on Factura.com's servers.
 
@@ -526,8 +547,11 @@ class Customer(_Resource):
         --------
         https://facturacom.docs.apiary.io/#reference/cfdi-3.3/crear-cfdi
         """
+        if type(rfc) != str:
+            raise ValueError('rfc type must be string')
+        if not rfc:
+            raise ValueError('rfc cannot be blank or None')
         response, j = cls._make_request(
             method='GET',
-            path=cls._find_url(),
-            params=params)
-        return Customer(j['data'])
+            path=cls._find_url(rfc))
+        return Customer(j['Data'])
